@@ -1,0 +1,4 @@
+# Narrow regexes for lines that legitimately match a system-info pattern (matched against the whole line).
+# Keep each one specific and explain it.
+# git@github.com ssh clone URL of this repo, not a personal email
+git@github\.com:ejlevin1/cli-svckit\.git
