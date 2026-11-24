@@ -31,3 +31,21 @@ def test_core_imports_stdlib_only():
                 names = [node.module]
             for n in names:
                 assert n.split(".")[0] in stdlib, f"{path.name}: top-level import of non-stdlib {n!r}"
+
+
+def test_all_names_import():
+    import importlib
+
+    mod = importlib.import_module("cli_svckit")
+    assert mod.__all__ == sorted(mod.__all__)
+    for name in mod.__all__:
+        assert hasattr(mod, name), name
+
+
+def test_schemas_are_packaged():
+    from importlib.resources import files
+
+    names = sorted(p.name for p in (files("cli_svckit.contract") / "schemas").iterdir() if p.name.endswith(".json"))
+    assert names == sorted(
+        f"{n}.json" for n in ("complete", "describe", "doctor", "envelope", "health", "install", "lease", "prepare")
+    )
