@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import difflib
 import os
+import tempfile
 import time
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -80,21 +81,41 @@ def _write_atomic(path: Path, data: bytes) -> None:
     real = Path(os.path.realpath(path))
     real.parent.mkdir(parents=True, exist_ok=True)
     mode = real.stat().st_mode & 0o7777 if real.exists() else 0o644
-    tmp = real.with_name(real.name + ".svckit-tmp")
-    tmp.write_bytes(data)
-    os.chmod(tmp, mode)
-    os.replace(tmp, real)
+    # mkstemp creates the file 0600 with a unique name, so it is never wider than the source
+    fd, tmp_name = tempfile.mkstemp(prefix=real.name + ".svckit-tmp-", dir=real.parent)
+    try:
+        with os.fdopen(fd, "wb") as fh:
+            fh.write(data)
+        os.chmod(tmp_name, mode)
+        os.replace(tmp_name, real)
+    except BaseException:
+        Path(tmp_name).unlink(missing_ok=True)
+        raise
 
 
 def _backup(path: Path, clock: Callable[[], float]) -> Path:
     stamp = time.strftime("%Y%m%dT%H%M%SZ", time.gmtime(clock()))
-    dest = path.with_name(f"{path.name}.svckit-backup-{stamp}")
-    n = 1
-    while dest.exists():
-        dest = path.with_name(f"{path.name}.svckit-backup-{stamp}-{n}")
-        n += 1
-    dest.write_bytes(path.read_bytes())
+    mode = path.stat().st_mode & 0o7777
+    data = path.read_bytes()
+    n = 0
+    while True:
+        suffix = f"-{n}" if n else ""
+        dest = path.with_name(f"{path.name}.svckit-backup-{stamp}{suffix}")
+        try:
+            fd = os.open(dest, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+        except FileExistsError:
+            n += 1
+            continue
+        break
+    with os.fdopen(fd, "wb") as fh:
+        fh.write(data)
+    os.chmod(dest, mode)
     return dest
+
+
+def _key(path: str | os.PathLike[str]) -> str:
+    """Receipt key for a path: ``~`` expanded and made absolute, so every spelling finds the same entry."""
+    return os.path.abspath(os.path.expanduser(path))
 
 
 def _entries(receipts: Receipts, name: str) -> list[dict[str, Any]]:
@@ -133,7 +154,7 @@ def install_rc_line(
     A CRLF file gets a CRLF line; a file without a final newline gets one added first (recorded in the
     receipt so uninstall can restore the exact original bytes). Returns the actions (same on dry run).
     """
-    path = Path(rc_path)
+    path = Path(os.path.expanduser(rc_path))
     text = _managed(line, marker)
     data = _read(path)
     existing = _marked(_split(data), marker) if data is not None else []
@@ -141,6 +162,8 @@ def install_rc_line(
         lines = _split(data or b"")
         if len(existing) == 1 and _content(lines[existing[0]]) == text:
             return []
+        if len(existing) > 1:
+            raise _refuse("the marker appears more than once", path, "duplicate")
         raise _refuse("a line with this marker already exists and differs", path, "edited")
     action = Action("rc_line", str(path), line=text, sha256=sha256_text(text))
     if dry_run:
@@ -152,11 +175,11 @@ def install_rc_line(
     if data is not None and backup:
         _backup(path, clock)
     _write_atomic(path, new)
-    entries = [e for e in _entries(receipts, name) if not (e.get("kind") == "rc_line" and e.get("path") == str(path))]
+    entries = [e for e in _entries(receipts, name) if not (e.get("kind") == "rc_line" and e.get("path") == _key(path))]
     entries.append(
         {
             "kind": "rc_line",
-            "path": str(path),
+            "path": _key(path),
             "sha256": action.sha256,
             "line": text,
             "prefix_eol": prefix,
@@ -183,9 +206,9 @@ def uninstall_rc_line(
     differs from the receipt's hash (``edited``), or the marker appears more than once (``duplicate``);
     ``force`` overrides this. Nothing else in the file changes. Nothing to remove returns ``[]``.
     """
-    path = Path(rc_path)
+    path = Path(os.path.expanduser(rc_path))
     entries = _entries(receipts, name)
-    entry = next((e for e in entries if e.get("kind") == "rc_line" and e.get("path") == str(path)), None)
+    entry = next((e for e in entries if e.get("kind") == "rc_line" and e.get("path") == _key(path)), None)
     data = _read(path)
     lines = _split(data) if data is not None else []
     idx = _marked(lines, marker)
@@ -215,7 +238,7 @@ def uninstall_rc_line(
     new = b"".join(raw for i, raw in enumerate(lines) if i not in drop)
     _backup(path, clock)
     if entry and entry.get("created") and not new:
-        path.unlink()
+        Path(os.path.realpath(path)).unlink()
     else:
         _write_atomic(path, new)
     _store(receipts, name, [e for e in entries if e is not entry])
@@ -226,7 +249,7 @@ def uninstall_rc_line(
 
 
 def _link_path(target: str | os.PathLike[str], link_dir: str | os.PathLike[str]) -> Path:
-    return Path(link_dir) / Path(target).name
+    return Path(os.path.expanduser(link_dir)) / Path(target).name
 
 
 def install_link(
@@ -252,8 +275,8 @@ def install_link(
         return [action]
     link.parent.mkdir(parents=True, exist_ok=True)
     os.symlink(tgt, link)
-    entries = [e for e in _entries(receipts, name) if not (e.get("kind") == "link" and e.get("path") == str(link))]
-    entries.append({"kind": "link", "path": str(link), "sha256": action.sha256, "target": tgt})
+    entries = [e for e in _entries(receipts, name) if not (e.get("kind") == "link" and e.get("path") == _key(link))]
+    entries.append({"kind": "link", "path": _key(link), "sha256": action.sha256, "target": tgt})
     receipts.write(name, entries)
     return [action]
 
@@ -270,7 +293,7 @@ def uninstall_link(
     """Remove the link this tool created; refuse (``forbidden``) if it is not a receipted symlink to ``target``."""
     link = _link_path(target, link_dir)
     entries = _entries(receipts, name)
-    entry = next((e for e in entries if e.get("kind") == "link" and e.get("path") == str(link)), None)
+    entry = next((e for e in entries if e.get("kind") == "link" and e.get("path") == _key(link)), None)
     if not (link.is_symlink() or link.exists()):
         if entry is not None and not dry_run:
             _store(receipts, name, [e for e in entries if e is not entry])
@@ -293,7 +316,7 @@ def uninstall_link(
 
 def plan_diff(rc_path: str | os.PathLike[str], actions: list[Action]) -> str:
     """Return a unified diff of what ``actions`` (rc_line / remove) would do to ``rc_path`` (for ``--dry-run``)."""
-    path = Path(rc_path)
+    path = Path(os.path.expanduser(rc_path))
     data = _read(path) or b""
     old = _split(data)
     eol = _eol_of(data)

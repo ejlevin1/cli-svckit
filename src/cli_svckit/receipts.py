@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import tempfile
 import time
 from collections.abc import Callable
 from pathlib import Path
@@ -34,8 +35,7 @@ class Receipts:
         self.dir.mkdir(parents=True, exist_ok=True)
         os.chmod(self.dir, 0o700)
         doc = {"v": 1, "name": name, "entries": entries, "written_at": self._clock()}
-        tmp = path.with_name(path.name + ".tmp")
-        fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+        fd, tmp = tempfile.mkstemp(prefix=path.name + ".", suffix=".tmp", dir=self.dir)
         with os.fdopen(fd, "w", encoding="utf-8") as fh:
             fh.write(json.dumps(doc, indent=2, sort_keys=True) + "\n")
         os.chmod(tmp, 0o600)

@@ -193,3 +193,49 @@ def test_link_replaced_after_install_refused(tmp_path, rec):
     with pytest.raises(SvcError) as ei:
         uninstall_link(tool, bin_dir, **kw)
     assert ei.value.data["found"] == "edited"
+
+
+def test_backup_and_rc_keep_source_mode(tmp_path, rec):
+    rc = tmp_path / "rc"
+    rc.write_text("alias a=b\n")
+    rc.chmod(0o600)
+    inst(rc, rec)
+    uninst(rc, rec)
+    backups = list(tmp_path.glob("rc.svckit-backup-*"))
+    assert len(backups) == 2
+    assert all(b.stat().st_mode & 0o777 == 0o600 for b in backups)
+    assert rc.stat().st_mode & 0o777 == 0o600
+    assert not list(tmp_path.glob("*.svckit-tmp*"))
+
+
+def test_install_duplicate_reported_as_duplicate(tmp_path, rec):
+    rc = tmp_path / "rc"
+    rc.write_text(f"{LINE}  # {MARK}\n{LINE}  # {MARK}\n")
+    with pytest.raises(SvcError) as ei:
+        inst(rc, rec)
+    assert ei.value.data["found"] == "duplicate"
+
+
+def test_force_removes_duplicates(tmp_path, rec):
+    rc = tmp_path / "rc"
+    rc.write_text(f"a\n{LINE}  # {MARK}\n{LINE}  # {MARK}\n")
+    uninst(rc, rec, force=True)
+    assert rc.read_text() == "a\n"
+
+
+def test_install_through_symlinked_rc(tmp_path, rec):
+    real = tmp_path / "real"
+    real.write_bytes(b"alias a=b\n")
+    rc = tmp_path / "rc"
+    rc.symlink_to(real)
+    inst(rc, rec)
+    assert rc.is_symlink() and MARK in real.read_text()
+    uninst(rc, rec)
+    assert rc.is_symlink() and real.read_bytes() == b"alias a=b\n"
+
+
+def test_receipt_key_normalised(tmp_path, rec, monkeypatch):
+    monkeypatch.setenv("HOME", str(tmp_path))
+    inst("~/rc", rec)
+    uninst(tmp_path / "rc", rec)
+    assert not (tmp_path / "rc").exists()
