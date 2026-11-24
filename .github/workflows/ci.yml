@@ -50,3 +50,33 @@ jobs:
           sudo install -m 0755 gitleaks /usr/local/bin/gitleaks
       - run: scripts/check-public.sh --all
       - run: scripts/check-public.sh --history
+
+  compat:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@1db35dd8eee11c5894872e0b383ae6c406cf738d # v10.4.0
+      - name: public API vs previous release (Griffe)
+        run: uv run --locked --all-extras -p 3.13 python scripts/compat_check.py
+      - name: schema, lease and cross-version tests against the previous release
+        run: |
+          set -euo pipefail
+          prev=$(uv run --locked --all-extras -p 3.13 python -c "
+          import sys; sys.path.insert(0, 'scripts')
+          import compat_check
+          from pathlib import Path
+          print(compat_check.previous_tag(Path('.')) or '')")
+          if [ -n "$prev" ]; then
+            git worktree add "$RUNNER_TEMP/prev" "$prev"
+            export SVCKIT_PREV_SRC="$RUNNER_TEMP/prev"
+          else
+            echo "no previous release tag: cross-version tests will skip"
+          fi
+          uv run --locked --all-extras -p 3.13 pytest -q tests/test_crossversion.py tests/test_compat_schemas.py tests/test_compat_lease.py
