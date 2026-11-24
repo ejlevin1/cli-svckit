@@ -1,6 +1,6 @@
 [project]
 name = "cli-svckit"
-version = "0.1.0"
+version = "0.1.1"
 description = "Toolkit for CLIs that ship local services: lifecycle, CLI install, a JSON contract and restart/update coordination."
 readme = "README.md"
 license = "MIT"
@@ -29,7 +29,14 @@ Homepage = "https://github.com/ejlevin1/cli-svckit"
 Issues = "https://github.com/ejlevin1/cli-svckit/issues"
 
 [dependency-groups]
-dev = ["pytest>=8", "ruff>=0.6", "jsonschema>=4.22"]
+dev = [
+  "pytest>=8",
+  "ruff>=0.6",
+  "jsonschema>=4.22",
+  "griffe>=1.5",
+  "hypothesis>=6.100",
+  "hypothesis-jsonschema>=0.23",
+]
 
 [build-system]
 requires = ["hatchling>=1.26"]
