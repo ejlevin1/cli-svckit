@@ -1,0 +1,102 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cli-svckit.example/schema/1/install.json",
+  "title": "install / uninstall",
+  "description": "Params and result of `svc install` and `svc uninstall`. Unknown fields are allowed everywhere (must-ignore).",
+  "$defs": {
+    "params": {
+      "type": "object",
+      "properties": {
+        "dry_run": {
+          "type": "boolean"
+        },
+        "confirm": {
+          "type": "boolean"
+        },
+        "scope": {
+          "enum": [
+            "cli",
+            "state",
+            "all"
+          ]
+        },
+        "overrides": {
+          "type": "object"
+        }
+      },
+      "required": [
+        "dry_run",
+        "confirm",
+        "scope"
+      ]
+    },
+    "action": {
+      "type": "object",
+      "properties": {
+        "op": {
+          "enum": [
+            "write",
+            "remove",
+            "link",
+            "rc_line",
+            "launchctl"
+          ]
+        },
+        "path": {
+          "type": "string"
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "argv": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "line": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "op"
+      ]
+    },
+    "result": {
+      "type": "object",
+      "properties": {
+        "changed": {
+          "type": "boolean"
+        },
+        "actions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/action"
+          }
+        },
+        "requires_root": {
+          "type": "object",
+          "properties": {
+            "argv": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          "required": [
+            "argv"
+          ]
+        },
+        "receipts": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "changed",
+        "actions"
+      ]
+    }
+  }
+}

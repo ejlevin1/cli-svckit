@@ -9,6 +9,8 @@ manage a whole set of them the same way.
 > pip install "cli-svckit @ git+https://github.com/ejlevin1/cli-svckit@v0.1.0"
 > ```
 
+Compatibility guarantees for the contract, lease format and Python API: [docs/compatibility.md](docs/compatibility.md).
+
 ## What works now
 
 - **The JSON contract** (`cli_svckit.contract`): every participating tool answers

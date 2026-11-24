@@ -11,6 +11,7 @@ ROOT = pathlib.Path(__file__).resolve().parents[1]
 def test_version_matches_pyproject():
     meta = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
     assert cli_svckit.__version__ == meta["project"]["version"]
+    print(f"VERSION: {cli_svckit.__version__}")
 
 
 def test_core_has_no_runtime_dependencies():

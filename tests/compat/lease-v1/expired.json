@@ -1,0 +1,33 @@
+{
+  "v": 1,
+  "op": {
+    "id": "op-20260101T120000-stale",
+    "kind": "restart",
+    "targets": [
+      "com.example.worker"
+    ],
+    "reason": "example-tool update",
+    "by": {
+      "tool": "example-tool",
+      "user": "alice",
+      "pid": 4321
+    },
+    "started_at": 800.0,
+    "deadline": 1000.0,
+    "expires_at": 1200.0,
+    "affected": {
+      "pids": [
+        4400,
+        4401
+      ]
+    },
+    "wait_for": "interrupted",
+    "now": false,
+    "lease": null
+  },
+  "phase": "prepare",
+  "phase_at": 800.0,
+  "outcome": null,
+  "facts": null,
+  "owner_uid": 4242
+}

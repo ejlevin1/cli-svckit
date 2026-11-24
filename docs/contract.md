@@ -60,6 +60,7 @@ The JSON response is authoritative; the exit code is a summary for shells.
 - `svckit` is the contract `major.minor`. This document is `1.0`.
 - A minor version only **adds optional fields**. Readers ignore fields they do not know (must-ignore), everywhere.
 - A new major version may change or remove anything.
+- What counts as a breaking change, and the checks that enforce it, are in [compatibility.md](compatibility.md).
 - `describe` reports `contract: {min, max}`. The controller's `negotiate(contract)` picks the highest minor both
   sides support within the same major and refuses (error `incompatible`) when the majors differ.
 
@@ -71,9 +72,12 @@ All times are float UNIX timestamps (seconds); durations end in `_s` or `_ms`.
 
 <!-- schema: lease.op -->
 ```json
-{"id": "op-20260101T120000-a1b2", "kind": "update", "targets": ["com.example.worker"], "reason": "upgrade to 1.4.0", "by": {"tool": "example-tool", "user": "alice", "pid": 4242}, "started_at": 1767268800.0, "deadline": 1767269100.0, "expires_at": 1767270600.0, "affected": {"pids": [5150, 5151]}, "wait_for": "interrupted", "now": false, "lease": "~/.local/state/example-tool/leases/op-20260101T120000-a1b2.json"}
+{"id": "op-20260101T120000-a1b2", "kind": "platform.update", "targets": ["com.example.worker"], "reason": "upgrade to 1.4.0", "by": {"tool": "example-tool", "user": "alice", "pid": 4242}, "started_at": 1767268800.0, "deadline": 1767269100.0, "expires_at": 1767270600.0, "affected": {"pids": [5150, 5151]}, "wait_for": "interrupted", "now": false, "lease": "~/.local/state/example-tool/leases/op-20260101T120000-a1b2.json"}
 ```
 
+- `kind` is one of the documented vocabulary: `service.restart`, `service.stop`, `platform.update`, `host.reboot`;
+  site-specific kinds use `x-<vendor>.*` (for example `x-example.rotate-keys`). Participants declare globs such
+  as `service.*`.
 - `kind` and `targets` are matched by participants against their declared globs (`coordination.kinds`,
   `coordination.services`) with shell-style patterns.
 - `deadline`: when the controller stops waiting. `expires_at`: when a leftover lease counts as stale.
@@ -95,7 +99,7 @@ Result:
 
 <!-- schema: describe.result -->
 ```json
-{"tool": {"name": "example-tool", "version": "1.3.2"}, "contract": {"min": "1.0", "max": "1.0"}, "methods": ["describe", "health", "doctor", "install", "uninstall", "prepare", "complete"], "services": [{"label": "com.example.worker", "kind": "agent"}], "coordination": {"kinds": ["update", "restart*"], "services": ["com.example.*"], "phases": ["prepare", "complete"], "prepare_timeout_s": 120, "complete_timeout_s": 30, "watches_lease": true}, "doctor": {"checks": [{"id": "config", "title": "Config file parses"}]}}
+{"tool": {"name": "example-tool", "version": "1.3.2"}, "contract": {"min": "1.0", "max": "1.0"}, "methods": ["describe", "health", "doctor", "install", "uninstall", "prepare", "complete"], "services": [{"label": "com.example.worker", "kind": "agent"}], "coordination": {"kinds": ["platform.update", "service.*"], "services": ["com.example.*"], "phases": ["prepare", "complete"], "prepare_timeout_s": 120, "complete_timeout_s": 30, "watches_lease": true}, "doctor": {"checks": [{"id": "config", "title": "Config file parses"}]}}
 ```
 
 ### health
@@ -145,7 +149,7 @@ answers quickly: `ready` once it is quiesced, `busy` while work is still in flig
 
 <!-- schema: prepare.params -->
 ```json
-{"op": {"id": "op-20260101T120000-a1b2", "kind": "update", "targets": ["com.example.worker"], "deadline": 1767269100.0, "affected": {"pids": null}}, "poll": 0}
+{"op": {"id": "op-20260101T120000-a1b2", "kind": "platform.update", "targets": ["com.example.worker"], "deadline": 1767269100.0, "affected": {"pids": null}}, "poll": 0}
 ```
 
 Busy (a result, not an error):
@@ -175,7 +179,7 @@ The controller reports how the operation ended; the participant resumes.
 
 <!-- schema: complete.params -->
 ```json
-{"op": {"id": "op-20260101T120000-a1b2", "kind": "update", "targets": ["com.example.worker"]}, "outcome": "ok", "facts": {"targets": {"com.example.worker": {"old_pid": 5150, "new_pid": 6001, "old_version": "1.3.2", "new_version": "1.4.0", "healthy": true, "restarted": true}}, "duration_s": 12.5, "waited_s": 41.0, "capped": false, "forced_now": false}}
+{"op": {"id": "op-20260101T120000-a1b2", "kind": "platform.update", "targets": ["com.example.worker"]}, "outcome": "ok", "facts": {"targets": {"com.example.worker": {"old_pid": 5150, "new_pid": 6001, "old_version": "1.3.2", "new_version": "1.4.0", "healthy": true, "restarted": true}}, "duration_s": 12.5, "waited_s": 41.0, "capped": false, "forced_now": false}}
 ```
 
 <!-- schema: complete.result -->
@@ -205,7 +209,7 @@ quiesces even if it is never called. One file per active op (`<op_id>.json`); fi
 
 <!-- schema: lease -->
 ```json
-{"v": 1, "op": {"id": "op-20260101T120000-a1b2", "kind": "update", "targets": ["com.example.worker"], "reason": "upgrade to 1.4.0", "by": {"tool": "example-tool", "user": "alice"}, "started_at": 1767268800.0, "deadline": 1767269100.0, "expires_at": 1767270600.0, "affected": {"pids": [5150]}, "wait_for": "interrupted", "now": false, "lease": null}, "phase": "prepare", "phase_at": 1767268800.0, "outcome": null, "facts": null, "owner_uid": 501}
+{"v": 1, "op": {"id": "op-20260101T120000-a1b2", "kind": "platform.update", "targets": ["com.example.worker"], "reason": "upgrade to 1.4.0", "by": {"tool": "example-tool", "user": "alice"}, "started_at": 1767268800.0, "deadline": 1767269100.0, "expires_at": 1767270600.0, "affected": {"pids": [5150]}, "wait_for": "interrupted", "now": false, "lease": null}, "phase": "prepare", "phase_at": 1767268800.0, "outcome": null, "facts": null, "owner_uid": 501}
 ```
 
 `phase` is `prepare` → `running` → `complete`; `outcome` (`ok`, `failed`, `partial`, `aborted`) is set at

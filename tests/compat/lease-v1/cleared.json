@@ -1,0 +1,36 @@
+{
+  "v": 1,
+  "op": {
+    "id": "op-20260101T120000-clear",
+    "kind": "update",
+    "targets": [
+      "com.example.worker"
+    ],
+    "reason": "example-tool update",
+    "by": {
+      "tool": "example-tool",
+      "user": "alice",
+      "pid": 4321
+    },
+    "started_at": 700.0,
+    "deadline": 900.0,
+    "expires_at": 5000.0,
+    "affected": {
+      "pids": [
+        4400,
+        4401
+      ]
+    },
+    "wait_for": "interrupted",
+    "now": false,
+    "lease": null
+  },
+  "phase": "complete",
+  "phase_at": 1300.0,
+  "outcome": "aborted",
+  "facts": {
+    "cleared_by_human": true,
+    "reason": "stuck in prepare"
+  },
+  "owner_uid": 4242
+}
