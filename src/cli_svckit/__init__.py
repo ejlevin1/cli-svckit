@@ -33,7 +33,7 @@ from cli_svckit.coord.watch import LeaseWatcher
 from cli_svckit.doctor import run_checks
 from cli_svckit.health import HealthResult
 
-__version__ = "0.1.0"
+__version__ = "0.1.1"
 
 __all__ = [
     "CONTRACT_VERSION",

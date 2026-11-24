@@ -3,6 +3,16 @@
 All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses semantic versioning.
 
+## [0.1.1]
+
+### Added
+- Compatibility checks: a Griffe check of the public Python API against the previous release, schema and
+  lease-format compatibility tests (hypothesis-jsonschema against the frozen 1.0 schemas) and a cross-version run in CI.
+- Documented compatibility policy (`docs/compatibility.md`).
+
+### Fixed
+- Contract doc examples now use the operation kinds the library and its consumers use.
+
 ## [0.1.0]
 
 ### Added
