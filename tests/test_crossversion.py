@@ -30,19 +30,33 @@ TARGETS = ["example-svc"]
 
 # Runs the PREVIOUS release's controller (PYTHONPATH points at its src) against a toy's ``svc`` hooks.
 DRIVER = """
-import json, sys
+import json, os, sys
 import cli_svckit
 from cli_svckit.contract.client import Participant
 from cli_svckit.coord.controller import Operation
 from cli_svckit.coord.lease import LeaseDir
 
-lease_dir, toy, state = sys.argv[1:4]
-p = Participant("example-toy", [sys.executable, toy, "--state", state], timeout_s=10.0)
+lease_dir, toy, state, cur_src, wrapper = sys.argv[1:6]
+# The participant must run on the CURRENT library, not on ours (PYTHONPATH would otherwise leak into it).
+env = dict(os.environ, PYTHONPATH=cur_src)
+p = Participant("example-toy", [sys.executable, wrapper, toy, "--state", state], timeout_s=10.0, env=env)
 op = Operation("service.restart", ["example-svc"], lease_dir=LeaseDir(lease_dir), participants=[p],
                poll_s=0.2, max_wait_s=5, say=lambda _line: None)
 with op:
     op.facts["restarted"] = True
 print(json.dumps({"op_id": op.op.id, "src": cli_svckit.__file__}))
+"""
+
+
+# Records which library served the participant's ``svc`` hooks, then runs the toy unchanged.
+WRAPPER = """
+import os, runpy, sys
+import cli_svckit
+with open(os.environ["SVCKIT_PROBE_FILE"], "a", encoding="utf-8") as fh:
+    fh.write(cli_svckit.__file__ + "\\n")
+toy = sys.argv[1]
+sys.argv = [toy, *sys.argv[2:]]
+runpy.run_path(toy, run_name="__main__")
 """
 
 
@@ -160,12 +174,15 @@ def test_previous_controller_with_current_participant(
     d = make_daemon(CUR_TOY, False)
     driver = tmp_path / "prev_driver.py"
     driver.write_text(DRIVER, encoding="utf-8")
+    wrapper = tmp_path / "probe_wrapper.py"
+    wrapper.write_text(WRAPPER, encoding="utf-8")
+    probe = tmp_path / "probe.txt"
     seen: dict[str, str] = {}
 
     def run() -> bool:
         proc = subprocess.run(
-            [sys.executable, str(driver), str(d.leases), str(CUR_TOY), str(d.state)],
-            env=env_for(True),
+            [sys.executable, str(driver), str(d.leases), str(CUR_TOY), str(d.state), str(ROOT / "src"), str(wrapper)],
+            env=dict(env_for(True), SVCKIT_PROBE_FILE=str(probe)),
             capture_output=True,
             text=True,
             timeout=15,
@@ -176,5 +193,8 @@ def test_previous_controller_with_current_participant(
 
     assert run()
     assert str(prev_root() / "src") in seen["src"], "driver did not use the previous release's library"
+    served = probe.read_text(encoding="utf-8").splitlines()
+    assert served, "the current participant's svc hooks never ran"
+    assert all(line.startswith(str(ROOT / "src")) for line in served), f"hooks served by the wrong library: {served}"
     assert wait_for(lambda: d.has("prepare", seen["op_id"])), "prepare did not reach the current daemon"
     assert wait_for(lambda: d.has("complete", seen["op_id"])), "complete did not reach the current daemon"
