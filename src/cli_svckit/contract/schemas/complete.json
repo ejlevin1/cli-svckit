@@ -1,0 +1,126 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cli-svckit.example/schema/1/complete.json",
+  "title": "complete",
+  "description": "Params and result of `svc complete`. Unknown fields are allowed everywhere (must-ignore).",
+  "$defs": {
+    "target": {
+      "type": "object",
+      "properties": {
+        "old_pid": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "new_pid": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "old_version": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "new_version": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "healthy": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "restarted": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "restarted"
+      ]
+    },
+    "facts": {
+      "type": "object",
+      "properties": {
+        "targets": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/target"
+          }
+        },
+        "duration_s": {
+          "type": "number"
+        },
+        "waited_s": {
+          "type": "number"
+        },
+        "capped": {
+          "type": "boolean"
+        },
+        "forced_now": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "targets",
+        "duration_s",
+        "waited_s",
+        "capped",
+        "forced_now"
+      ]
+    },
+    "params": {
+      "type": "object",
+      "properties": {
+        "op": {
+          "$ref": "lease.json#/$defs/op"
+        },
+        "outcome": {
+          "enum": [
+            "ok",
+            "failed",
+            "partial",
+            "aborted"
+          ]
+        },
+        "error": {
+          "type": "string"
+        },
+        "facts": {
+          "$ref": "#/$defs/facts"
+        }
+      },
+      "required": [
+        "op",
+        "outcome",
+        "facts"
+      ]
+    },
+    "result": {
+      "type": "object",
+      "properties": {
+        "state": {
+          "enum": [
+            "resumed",
+            "recovering"
+          ]
+        },
+        "actions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "state"
+      ]
+    }
+  }
+}
