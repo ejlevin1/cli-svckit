@@ -28,6 +28,10 @@ if mode == "garbage":
     print("secret-token-xyz not json"); sys.exit(1)
 if mode == "hang":
     time.sleep(60)
+if mode == "stubborn":
+    import signal
+    signal.signal(signal.SIGTERM, signal.SIG_IGN)
+    time.sleep(60)
 if mode == "busy":
     out({"svckit": "1.0", "id": req["id"], "ok": True, "result": {"ready": False}}); sys.exit(3)
 if mode == "error":
@@ -92,6 +96,29 @@ def test_error_and_fail_policy(script: Path) -> None:
     assert not r.ok and r.error is not None and r.error.code == "internal"
     assert effective_ready(r, "open") is True
     assert effective_ready(r, "closed") is False
+
+
+def test_effective_ready_uses_participant_fail_policy(script: Path) -> None:
+    r = mk(script, "error", fail_policy="closed").call("prepare")
+    assert r.fail_policy == "closed"
+    assert effective_ready(r) is False
+    assert effective_ready(mk(script, "error").call("prepare")) is True
+
+
+def test_timeout_escalates_to_sigkill(script: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr("cli_svckit.contract.client.KILL_GRACE_S", 0.5)
+    t = time.monotonic()
+    r = mk(script, "stubborn", timeout_s=1.0).call("prepare")
+    assert time.monotonic() - t < 4.0
+    assert r.timed_out and r.error is not None and r.error.code == "timeout"
+
+
+def test_corrupt_cache_entry_is_a_miss(script: Path, tmp_path: Path) -> None:
+    path = tmp_path / "cache.json"
+    p = mk(script)
+    path.write_text(json.dumps({DescribeCache._key(p): {"at": "bad", "version": "1.0.0", "result": {"x": 1}}}))
+    res = p.describe(DescribeCache(path))
+    assert res is not None and res["tool"]["name"] == "example-tool"
 
 
 def test_unsupported_not_applicable(script: Path) -> None:

@@ -6,6 +6,7 @@ import contextlib
 import json
 import os
 import re
+import signal
 import subprocess
 import time
 import uuid
@@ -39,6 +40,7 @@ class CallResult:
     rc: int | None
     duration_s: float
     timed_out: bool
+    fail_policy: str = "open"
 
 
 def _caller() -> dict[str, Any]:
@@ -57,12 +59,12 @@ def _caller() -> dict[str, Any]:
 def _terminate(proc: subprocess.Popen[str]) -> None:
     """Stop a child: SIGTERM, then SIGKILL after a short grace period; always reaps it."""
     with contextlib.suppress(OSError):
-        proc.terminate()
+        os.killpg(proc.pid, signal.SIGTERM)
     try:
         proc.communicate(timeout=KILL_GRACE_S)
     except subprocess.TimeoutExpired:
         with contextlib.suppress(OSError):
-            proc.kill()
+            os.killpg(proc.pid, signal.SIGKILL)
         with contextlib.suppress(Exception):
             proc.communicate(timeout=KILL_GRACE_S)
 
@@ -115,7 +117,9 @@ class Participant:
         def finish(
             ok: bool, response: Response | None, error: Error | None, rc: int | None, timed_out: bool = False
         ) -> CallResult:
-            return CallResult(self.name, method, ok, response, error, rc, time.monotonic() - start, timed_out)
+            return CallResult(
+                self.name, method, ok, response, error, rc, time.monotonic() - start, timed_out, self.fail_policy
+            )
 
         try:
             proc = subprocess.Popen(
@@ -183,7 +187,7 @@ def effective_ready(result: CallResult, fail_policy: str | None = None) -> bool 
     A participant's own answer decides (``result.ok`` with ``ready``, or exit code 3 meaning busy). Errors and timeouts
     follow ``fail_policy`` (``open``: counts as ready, ``closed``: counts as busy); ``unsupported`` is not applicable.
     """
-    policy = fail_policy or "open"
+    policy = fail_policy or result.fail_policy
     if result.ok and result.response is not None:
         data = result.response.result or {}
         ready = data.get("ready")
@@ -237,10 +241,15 @@ class DescribeCache:
         entry = data.get(key)
         now = self.clock()
         if isinstance(entry, dict) and isinstance(entry.get("result"), dict):
-            age = now - float(entry.get("at", 0.0))
+            try:
+                age = now - float(entry.get("at", 0.0))
+            except (TypeError, ValueError):
+                age = -1.0
             if 0 <= age <= self.max_age_s:
                 return entry["result"]
-            version = p.probe_version()
+            # The stored version comes from describe's tool.version; it is compared with the last word of
+            # ``cmd --version``, so a tool printing "v1.0.0" never matches and simply refetches.
+            version = p.probe_version() if age >= 0 else None
             if version is not None and version == entry.get("version"):
                 entry["at"] = now
                 data[key] = entry
