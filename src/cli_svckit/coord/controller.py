@@ -149,7 +149,7 @@ class Operation:
         if self.op is not None:
             return self.op
         existing = self.lease_dir.get(self.op_id) if self.op_id else None
-        if existing is not None and existing.phase != "complete":
+        if existing is not None and existing.phase != "complete" and existing.is_active(self.clock()):
             self.op = existing.op
             self._started = True
             return self.op
@@ -219,6 +219,8 @@ class Operation:
         count = 0
         for name, data in report.busy.items():
             for item in data.get("in_flight") or []:
+                if isinstance(item, dict) and item.get("interrupted") is False and self.wait_for != "all":
+                    continue
                 count += 1
                 if isinstance(item, dict):
                     parts.append(f"{name}:{item.get('what') or item.get('id') or '?'}")
@@ -262,7 +264,9 @@ class Operation:
         """One step for periodic jobs: ``"waiting"``, ``"ready"`` or ``"capped"``.
 
         The first tick creates the lease; later ticks (also from another process, via ``op_id``) reuse it. Each tick
-        does one prepare poll. On ``ready``/``capped`` the lease moves to ``running``.
+        does one prepare poll. On ``ready`` the lease moves to ``running``. ``capped`` means the cap was hit: with
+        ``on_cap="proceed"`` the lease moves to ``running`` (``report.ready`` True); with ``"abort"`` it stays in
+        ``prepare`` and ``report.ready`` is False.
         """
         op = self.start()
         report = self._poll(op, self._polls)
@@ -285,12 +289,20 @@ class Operation:
         return state
 
     def __enter__(self) -> Operation:
-        report = self.prepare()
-        if not report.ready:
-            self._finish("aborted", f"participants not ready after {report.waited_s:.0f}s")
-            raise OperationAborted("participants did not become ready before the cap", report)
-        assert self.op is not None
-        self.lease_dir.set_phase(self.op.id, "running")
+        try:
+            report = self.prepare()
+            if not report.ready:
+                self._finish("aborted", f"participants not ready after {report.waited_s:.0f}s")
+                raise OperationAborted("participants did not become ready before the cap", report)
+            assert self.op is not None
+            self.lease_dir.set_phase(self.op.id, "running")
+        except OperationAborted:
+            raise
+        except BaseException as e:
+            # Python never calls __exit__ when __enter__ fails, so release the lease here.
+            if self._started and not self._finished:
+                self._finish("aborted", f"{type(e).__name__}: {e}" if str(e) else type(e).__name__)
+            raise
         return self
 
     def __exit__(self, exc_type: Any, exc: BaseException | None, tb: Any) -> None:

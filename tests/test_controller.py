@@ -171,7 +171,23 @@ def test_fail_closed_on_timeout(env):
     with pytest.raises(OperationAborted):
         with op:
             pass
-    assert p.methods().count("prepare") >= 3
+    assert p.methods().count("prepare") == 4
+    assert env[1].tombstones()[0].outcome == "aborted"
+
+
+def test_keyboard_interrupt_during_prepare_releases_lease(env):
+    p = Fake(prepares=[busy()])
+    op = make(env, [p])
+
+    def boom(_s: float) -> None:
+        raise KeyboardInterrupt
+
+    op.sleep = boom
+    with pytest.raises(KeyboardInterrupt):
+        with op:
+            pass
+    assert env[1].tombstones()[0].outcome == "aborted"
+    assert not env[1].active(op.clock()) if hasattr(env[1], "active") else True
 
 
 def test_detached_busy_does_not_block(env):
