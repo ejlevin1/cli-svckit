@@ -1,0 +1,75 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cli-svckit.example/schema/1/health.json",
+  "title": "health",
+  "description": "Result of `svc health` (IETF health-check draft style). Unknown fields are allowed everywhere (must-ignore).",
+  "$defs": {
+    "params": {
+      "type": "object"
+    },
+    "check": {
+      "type": "object",
+      "properties": {
+        "status": {
+          "enum": [
+            "pass",
+            "warn",
+            "fail"
+          ]
+        },
+        "observedValue": {},
+        "observedUnit": {
+          "type": "string"
+        },
+        "output": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "status"
+      ]
+    },
+    "result": {
+      "type": "object",
+      "properties": {
+        "status": {
+          "enum": [
+            "pass",
+            "warn",
+            "fail"
+          ]
+        },
+        "live": {
+          "type": "boolean"
+        },
+        "ready": {
+          "type": "boolean"
+        },
+        "version": {
+          "type": "string"
+        },
+        "output": {
+          "type": "string"
+        },
+        "checks": {
+          "type": "object",
+          "propertyNames": {
+            "pattern": "^[^:]+(:[^:]+)?$"
+          },
+          "additionalProperties": {
+            "type": "array",
+            "items": {
+              "$ref": "#/$defs/check"
+            }
+          }
+        }
+      },
+      "required": [
+        "status",
+        "live",
+        "ready",
+        "checks"
+      ]
+    }
+  }
+}

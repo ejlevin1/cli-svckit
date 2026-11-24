@@ -1,0 +1,114 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cli-svckit.example/schema/1/lease.json",
+  "title": "lease file",
+  "description": "A lease file in the lease directory (and its `done/` tombstone); `$defs/op` is the operation record used by prepare/complete. Unknown fields are allowed everywhere (must-ignore).",
+  "type": "object",
+  "properties": {
+    "v": {
+      "const": 1
+    },
+    "op": {
+      "$ref": "#/$defs/op"
+    },
+    "phase": {
+      "enum": [
+        "prepare",
+        "running",
+        "complete"
+      ]
+    },
+    "phase_at": {
+      "type": "number"
+    },
+    "outcome": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "facts": {
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "owner_uid": {
+      "type": "integer",
+      "minimum": 0
+    }
+  },
+  "required": [
+    "v",
+    "op",
+    "phase",
+    "phase_at",
+    "owner_uid"
+  ],
+  "$defs": {
+    "op": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^op-"
+        },
+        "kind": {
+          "type": "string"
+        },
+        "targets": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "reason": {
+          "type": "string"
+        },
+        "by": {
+          "type": "object"
+        },
+        "started_at": {
+          "type": "number"
+        },
+        "deadline": {
+          "type": "number"
+        },
+        "expires_at": {
+          "type": "number"
+        },
+        "affected": {
+          "type": "object",
+          "properties": {
+            "pids": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "integer"
+              }
+            }
+          }
+        },
+        "wait_for": {
+          "type": "string"
+        },
+        "now": {
+          "type": "boolean"
+        },
+        "lease": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "id",
+        "kind",
+        "targets"
+      ]
+    }
+  }
+}
