@@ -67,9 +67,12 @@ class HealthResult:
     @classmethod
     def from_dict(cls, d: dict[str, Any]) -> HealthResult:
         """Build from the wire form; unknown keys are ignored."""
+        checks_in = d.get("checks")
+        if not isinstance(checks_in, dict):
+            checks_in = {}
         checks = {
             name: [CheckResult.from_dict(c) for c in items if isinstance(c, dict)]
-            for name, items in (d.get("checks") or {}).items()
+            for name, items in checks_in.items()
             if isinstance(items, list)
         }
         return cls(
@@ -112,13 +115,14 @@ def http_probe(url: str, timeout: float = 5.0, expect_status: int = 200) -> Chec
     """
     start = time.monotonic()
     try:
-        opener = urllib.request.build_opener(_SameHostRedirect)
+        opener = urllib.request.build_opener(urllib.request.ProxyHandler({}), _SameHostRedirect)
         with opener.open(urllib.request.Request(url, method="GET"), timeout=timeout) as resp:
             code = resp.status
     except urllib.error.HTTPError as exc:
         code = exc.code
     except Exception as exc:
-        return CheckResult("fail", output=f"{type(exc).__name__}: {exc}"[:200])
+        # Only the exception type: messages such as "unknown url type" echo the whole URL (maybe a token).
+        return CheckResult("fail", output=type(exc).__name__)
     ms = round((time.monotonic() - start) * 1000, 1)
     if code == expect_status:
         return CheckResult("pass", ms, "ms", f"HTTP {code}")

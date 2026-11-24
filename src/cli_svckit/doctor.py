@@ -62,7 +62,7 @@ class DoctorReport:
     def status(self) -> str:
         """``fail`` if any check failed, else ``warn`` if any warned, else ``ok`` (skips do not count)."""
         statuses = {o.item.status for o in self.outcomes}
-        if "fail" in statuses:
+        if statuses - {"ok", "warn", "skip"}:  # "fail" and anything unknown: fail closed
             return "fail"
         return "warn" if "warn" in statuses else "ok"
 
@@ -80,6 +80,8 @@ def _run_one(check: Check, box: list[DoctorItem], done: threading.Event) -> None
         item = check.fn()
         if not isinstance(item, DoctorItem):
             item = DoctorItem("fail", f"check returned {type(item).__name__}, expected DoctorItem")
+        if item.status not in ("ok", "warn", "fail", "skip"):
+            item = DoctorItem("fail", f"invalid status {item.status!r}")
         box.append(item)
     except BaseException as exc:
         box.append(DoctorItem("fail", f"{type(exc).__name__}: {exc}"))
@@ -87,7 +89,13 @@ def _run_one(check: Check, box: list[DoctorItem], done: threading.Event) -> None
         done.set()
 
 
-def run_checks(checks: list[Check], *, max_workers: int = 8) -> DoctorReport:
+def run_checks(
+    checks: list[Check],
+    *,
+    max_workers: int = 8,
+    clock: Callable[[], float] = time.monotonic,
+    sleep: Callable[[float], None] = time.sleep,
+) -> DoctorReport:
     """Run ``checks`` with at most ``max_workers`` in flight; a check that overruns its deadline fails.
 
     Each check runs in a daemon thread. An overrunning thread is abandoned (it cannot be killed) and its slot is
@@ -103,9 +111,9 @@ def run_checks(checks: list[Check], *, max_workers: int = 8) -> DoctorReport:
             done = threading.Event()
             box: list[DoctorItem] = []
             threading.Thread(target=_run_one, args=(checks[i], box, done), daemon=True).start()
-            running[i] = (time.monotonic() + checks[i].deadline_s, done, box)
-        time.sleep(0.005)
-        now = time.monotonic()
+            running[i] = (clock() + checks[i].deadline_s, done, box)
+        sleep(0.005)
+        now = clock()
         for i, (deadline, done, box) in list(running.items()):
             if done.is_set():
                 results[i] = box[0]

@@ -25,7 +25,8 @@ class ProcInfo:
 def _ps_field(pid: int, field: str) -> str | None:
     try:
         out = subprocess.run(
-            ["ps", "-o", f"{field}=", "-p", str(pid)], capture_output=True, text=True, timeout=5, check=False
+            ["ps", "-o", f"{field}=", "-p", str(pid)], capture_output=True, text=True, timeout=5, check=False,
+            env={**os.environ, "LC_ALL": "C"},
         )
     except (OSError, subprocess.SubprocessError):
         return None

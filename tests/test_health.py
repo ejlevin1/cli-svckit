@@ -111,3 +111,20 @@ def test_roundtrip_and_schema() -> None:
     jsonschema = pytest.importorskip("jsonschema")
     schema = load_schema("health")
     jsonschema.validate(d, {"$ref": "#/$defs/result", "$defs": schema["$defs"]})
+
+
+def test_http_probe_ignores_env_proxy(server: str, monkeypatch: pytest.MonkeyPatch) -> None:
+    for name in ("http_proxy", "HTTP_PROXY"):
+        monkeypatch.setenv(name, "http://127.0.0.1:1")
+    for name in ("no_proxy", "NO_PROXY"):
+        monkeypatch.delenv(name, raising=False)
+    assert http_probe(server + "/ok").status == "pass"
+
+
+def test_http_probe_does_not_echo_url() -> None:
+    r = http_probe("nourl?token=abc123")
+    assert r.status == "fail" and "abc123" not in (r.output or "")
+
+
+def test_from_dict_tolerates_non_dict_checks() -> None:
+    assert HealthResult.from_dict({"status": "pass", "checks": []}).checks == {}

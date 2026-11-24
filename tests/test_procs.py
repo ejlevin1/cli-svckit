@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import signal
 import subprocess
 import sys
 import time
@@ -52,8 +53,7 @@ def test_start_time_self_and_missing() -> None:
 
 def test_spawned_tree() -> None:
     code = (
-        "import subprocess,sys,time;"
-        "subprocess.Popen([sys.executable,'-c','import time;time.sleep(30)']);time.sleep(30)"
+        "import subprocess,sys,time;subprocess.Popen([sys.executable,'-c','import time;time.sleep(30)']);time.sleep(30)"
     )
     p = subprocess.Popen([sys.executable, "-c", code], start_new_session=True)
     try:
@@ -66,7 +66,7 @@ def test_spawned_tree() -> None:
         assert len(kids) == 1
         assert {r.pid for r in procs.group_members(p.pid)} >= {p.pid, kids[0].pid}
     finally:
-        p.kill()
+        os.killpg(p.pid, signal.SIGKILL)
         p.wait()
 
 

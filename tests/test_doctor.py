@@ -57,3 +57,9 @@ def test_timed_out_check_frees_slot() -> None:
     rep = run_checks([Check("slow", "S", slow, deadline_s=0.1), Check("b", "B", ok)], max_workers=1)
     assert time.monotonic() - start < 2
     assert [o.item.status for o in rep.outcomes] == ["fail", "ok"]
+
+
+def test_unknown_status_fails_closed() -> None:
+    rep = run_checks([Check("odd", "Odd", lambda: DoctorItem("error", "x"))])  # type: ignore[arg-type]
+    assert rep.status == "fail" and rep.exit_code() == 1
+    assert rep.to_dict()["checks"][0]["status"] == "fail"
