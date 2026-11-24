@@ -1,6 +1,6 @@
 [project]
 name = "cli-svckit"
-version = "0.0.0"
+version = "0.1.0"
 description = "Toolkit for CLIs that ship local services: lifecycle, CLI install, a JSON contract and restart/update coordination."
 readme = "README.md"
 license = "MIT"
@@ -9,7 +9,7 @@ requires-python = ">=3.11"
 authors = [{ name = "ejlevin1" }]
 keywords = ["launchd", "systemd", "services", "cli", "typer", "coordination"]
 classifiers = [
-  "Development Status :: 2 - Pre-Alpha",
+  "Development Status :: 3 - Alpha",
   "Intended Audience :: Developers",
   "Operating System :: MacOS",
   "Operating System :: POSIX :: Linux",
@@ -29,7 +29,7 @@ Homepage = "https://github.com/ejlevin1/cli-svckit"
 Issues = "https://github.com/ejlevin1/cli-svckit/issues"
 
 [dependency-groups]
-dev = ["pytest>=8", "ruff>=0.6"]
+dev = ["pytest>=8", "ruff>=0.6", "jsonschema>=4.22"]
 
 [build-system]
 requires = ["hatchling>=1.26"]

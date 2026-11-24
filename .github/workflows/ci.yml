@@ -26,8 +26,8 @@ jobs:
         with:
           persist-credentials: false
       - uses: astral-sh/setup-uv@1db35dd8eee11c5894872e0b383ae6c406cf738d # v10.4.0
-      - run: uv run --locked -p ${{ matrix.python }} pytest -q
-      - run: uv run --locked -p ${{ matrix.python }} ruff check
+      - run: uv run --locked --all-extras -p ${{ matrix.python }} pytest -q
+      - run: uv run --locked --all-extras -p ${{ matrix.python }} ruff check
 
   public-check:
     runs-on: ubuntu-latest

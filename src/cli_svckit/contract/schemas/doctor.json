@@ -1,0 +1,87 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cli-svckit.example/schema/1/doctor.json",
+  "title": "doctor",
+  "description": "Params and result of `svc doctor`. Unknown fields are allowed everywhere (must-ignore).",
+  "$defs": {
+    "params": {
+      "type": "object",
+      "properties": {
+        "fix": {
+          "type": "boolean"
+        },
+        "deep": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "fix",
+        "deep"
+      ]
+    },
+    "check": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "area": {
+          "type": "string"
+        },
+        "status": {
+          "enum": [
+            "ok",
+            "warn",
+            "fail",
+            "skip"
+          ]
+        },
+        "detail": {
+          "type": "string"
+        },
+        "fix": {
+          "type": "object",
+          "properties": {
+            "argv": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "hint": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "required": [
+        "id",
+        "area",
+        "status",
+        "detail"
+      ]
+    },
+    "result": {
+      "type": "object",
+      "properties": {
+        "status": {
+          "enum": [
+            "ok",
+            "warn",
+            "fail"
+          ]
+        },
+        "checks": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/check"
+          }
+        }
+      },
+      "required": [
+        "status",
+        "checks"
+      ]
+    }
+  }
+}

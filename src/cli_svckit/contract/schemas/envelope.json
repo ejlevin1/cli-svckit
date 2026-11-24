@@ -1,0 +1,133 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cli-svckit.example/schema/1/envelope.json",
+  "title": "svckit envelope",
+  "description": "Request (stdin) and response (last JSON line of stdout). Unknown fields are allowed everywhere (must-ignore).",
+  "$defs": {
+    "request": {
+      "type": "object",
+      "properties": {
+        "svckit": {
+          "type": "string",
+          "pattern": "^[0-9]+\\.[0-9]+$"
+        },
+        "id": {
+          "type": "string"
+        },
+        "method": {
+          "type": "string",
+          "description": "describe|health|doctor|install|uninstall|prepare|complete"
+        },
+        "caller": {
+          "type": [
+            "object",
+            "null"
+          ]
+        },
+        "deadline_ms": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "params": {
+          "type": "object"
+        }
+      },
+      "required": [
+        "svckit",
+        "id",
+        "method",
+        "params"
+      ]
+    },
+    "error": {
+      "type": "object",
+      "properties": {
+        "code": {
+          "enum": [
+            "unsupported",
+            "invalid",
+            "forbidden",
+            "requires_root",
+            "timeout",
+            "internal",
+            "incompatible"
+          ]
+        },
+        "message": {
+          "type": "string"
+        },
+        "retry_after_s": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "data": {
+          "type": [
+            "object",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "code",
+        "message"
+      ]
+    },
+    "response": {
+      "type": "object",
+      "properties": {
+        "svckit": {
+          "type": "string",
+          "pattern": "^[0-9]+\\.[0-9]+$"
+        },
+        "id": {
+          "type": "string"
+        },
+        "ok": {
+          "type": "boolean"
+        },
+        "result": {
+          "type": [
+            "object",
+            "null"
+          ]
+        },
+        "error": {
+          "$ref": "#/$defs/error"
+        }
+      },
+      "required": [
+        "svckit",
+        "id",
+        "ok"
+      ],
+      "if": {
+        "properties": {
+          "ok": {
+            "const": true
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "result"
+        ],
+        "properties": {
+          "result": {
+            "type": "object"
+          }
+        }
+      },
+      "else": {
+        "required": [
+          "error"
+        ]
+      }
+    }
+  }
+}
