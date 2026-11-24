@@ -1,0 +1,89 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cli-svckit.example/schema/1/prepare.json",
+  "title": "prepare",
+  "description": "Params and result of `svc prepare`. `busy` is a result, never an error. Unknown fields are allowed everywhere (must-ignore).",
+  "$defs": {
+    "params": {
+      "type": "object",
+      "properties": {
+        "op": {
+          "$ref": "lease.json#/$defs/op"
+        },
+        "poll": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "op",
+        "poll"
+      ]
+    },
+    "in_flight": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "kind": {
+          "type": "string"
+        },
+        "what": {
+          "type": "string"
+        },
+        "pid": {
+          "type": "integer"
+        },
+        "since": {
+          "type": "number"
+        },
+        "interrupted": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "id",
+        "kind",
+        "what",
+        "interrupted"
+      ]
+    },
+    "result": {
+      "type": "object",
+      "properties": {
+        "state": {
+          "enum": [
+            "ready",
+            "busy"
+          ]
+        },
+        "op_id": {
+          "type": "string"
+        },
+        "quiesced": {
+          "type": "boolean"
+        },
+        "eta_s": {
+          "type": "number",
+          "minimum": 0
+        },
+        "reason": {
+          "type": "string"
+        },
+        "in_flight": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/in_flight"
+          }
+        }
+      },
+      "required": [
+        "state",
+        "op_id",
+        "quiesced",
+        "in_flight"
+      ]
+    }
+  }
+}
